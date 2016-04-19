@@ -15,6 +15,9 @@
 #              Core of this will be to grab a @/$ pass and return a
 #              hash of all the readings.
 #          ?   Are channel numbers integers 00-16 or hex?
+#
+# 04/19/2016   Fix for new pyserial
+# bas@better-it-solutions.nl
 # -------------------------------------------------------------------------
 """
 Hygrosens sensor output
@@ -23,7 +26,7 @@ All Rights Reserved
 
 Requires the pyserial library from http://pyserial.sourceforge.net
 """
-import os,sys
+import os,sys,io
 from binascii import *
 import struct
 
@@ -101,6 +104,9 @@ class hygrosens:
         self.ser.setRTS(1)
         self.ser.setDTR(1)
         self.debug = debug
+        self.ser_io = io.TextIOWrapper(io.BufferedRWPair(self.ser, self.ser, 1),
+                               newline = '\r',
+                               line_buffering = True)
 
     def checksum( self, line ):
         """
@@ -225,11 +231,11 @@ class hygrosens:
         """
 
         # Wait for '@' from the device
-        line = self.ser.readline(eol='\r')            
+        line = self.ser_io.readline()
         if not line:
             raise ReadTimeout, "Timeout reading Hygrosens device"
         while line[0] != '@':
-            line = self.ser.readline(eol='\r')            
+            line = self.ser_io.readline()
             if not line:
                 raise ReadTimeout, "Timeout reading Hygrosens device"
 
@@ -248,7 +254,7 @@ class hygrosens:
                 sensor['value'] = self.process_value( sensor, line )
                 results[sensor['channel']] = sensor
 
-            line = self.ser.readline(eol='\r')
+            line = self.ser_io.readline()
             if not line:
                 raise ReadTimeout, "Timeout reading Hygrosens device"
 
@@ -257,5 +263,4 @@ class hygrosens:
             
         # Return a hash of the results for all sensors
         return results
-
 
